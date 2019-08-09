@@ -11,3 +11,7 @@ RUN rustup component add rust-src
 RUN rustup component add rustfmt
 RUN rustup install nightly
 RUN apt-get -y install lldb
+RUN cargo web prepare-emscripten
+RUN rustup target add wasm32-unknown-emscripten
+RUN apt-get -y install binaryen wabt
+RUN cargo install twiggy
