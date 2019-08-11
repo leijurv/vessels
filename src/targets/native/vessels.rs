@@ -31,9 +31,9 @@ impl InstanceHandler {
         let (rem, rss) = T::remote().separate();
         let (rsink, rstream) = rss.split();
         let rsink = Mutex::new(rsink);
-        let handler = move |ctx: &mut Ctx, len: u32| {
+        let handler = move |ctx: &mut Ctx, ptr: u32, len: u32| {
             let memory = ctx.memory(0);
-            let data: Vec<_> = memory.view()[0..len as usize]
+            let data: Vec<_> = memory.view()[ptr as usize..(len + ptr) as usize]
                 .iter()
                 .map(|cell| cell.get())
                 .collect();
@@ -69,7 +69,7 @@ impl InstanceHandler {
             cell.set(byte);
         }
         instance
-            .call("i", &[Value::I64(data.len() as i64)])
+            .call("i", &[Value::I32(0), Value::I32(data.len() as i32)])
             .unwrap();
     }
 }
