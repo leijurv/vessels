@@ -75,7 +75,7 @@ impl InstanceHandler {
 }
 
 impl<T: Protocol + ?Sized + 'static> Module<T> for WasmerModule<T> {
-    fn instantiate(&self) -> Box<dyn Future<Item = Box<T>, Error = Error>> {
+    fn instantiate(&self) -> Box<dyn Future<Item = Box<T>, Error = Error> + Send> {
         let state = self.state.clone();
         Box::new(lazy(move || {
             let state = state.lock().unwrap();
@@ -85,8 +85,9 @@ impl<T: Protocol + ?Sized + 'static> Module<T> for WasmerModule<T> {
 }
 
 impl<T: Protocol + ?Sized + 'static> WasmerModule<T> {
-    pub(crate) fn compile(data: &'_ [u8]) -> impl Future<Item = Box<dyn Module<T>>, Error = Error> {
-        let data = data.to_owned();
+    pub(crate) fn compile(
+        data: Vec<u8>,
+    ) -> impl Future<Item = Box<dyn Module<T> + 'static>, Error = Error> {
         lazy(move || {
             let module: Box<dyn Module<T>> = Box::new(WasmerModule {
                 state: Arc::new(Mutex::new(WasmerModuleState {
