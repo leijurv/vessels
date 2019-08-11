@@ -31,7 +31,7 @@ impl InstanceHandler {
         let (rem, rss) = T::remote().separate();
         let (rsink, rstream) = rss.split();
         let rsink = Mutex::new(rsink);
-        let handler = move |ctx: &mut Ctx, ptr: u32, len: u32| {
+        let handler = |ctx: &mut Ctx, ptr: u32, len: u32| {
             let memory = ctx.memory(0);
             let data: Vec<_> = memory.view()[ptr as usize..(len + ptr) as usize]
                 .iter()
