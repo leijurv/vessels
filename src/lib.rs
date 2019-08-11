@@ -25,6 +25,9 @@ extern crate stdweb;
 #[macro_use]
 extern crate vessels_derive;
 
+pub use vessels::*;
+mod vessels;
+
 mod errors;
 /// Provides a cross-platform abstracted asynchronous executor.
 pub mod executor;

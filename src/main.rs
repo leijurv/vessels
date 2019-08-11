@@ -2,7 +2,7 @@ use futures::Future as Fut;
 use futures::{lazy, IntoFuture, Stream};
 use vessels::{
     executor,
-    protocol::{self, protocol, Future, Value},
+    protocol::{self, protocol, Future, Protocol, Remote, Value},
 };
 
 #[derive(Value, Debug)]
@@ -46,7 +46,8 @@ impl TestProtocol for Test {
 
 fn main() {
     let rem = TestProtocol::remote();
-    let (rsink, rstream) = rem.clone().split();
+    let (rem, rss) = rem.separate();
+    let (rsink, rstream) = rss.split();
     let (sink, stream) = Test.into_protocol().split();
     executor::run(lazy(move || {
         executor::spawn(rstream.forward(sink).then(|_| Ok(())));

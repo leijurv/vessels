@@ -79,6 +79,32 @@ impl<T: Serialize + DeserializeOwned> Stream for Context<T> {
     }
 }
 
+/// The separated Sink + Stream component of a protocol shim.
+pub trait RemoteSinkStream<T: ?Sized + Protocol>:
+    Stream<Item = T::Call, Error = ()> + Sink<SinkItem = T::Response, SinkError = ()> + Send
+{
+}
+
+/// A remote shim produced by a generated protocol implementation.
+pub trait Remote<T: ?Sized + Protocol>:
+    Stream<Item = T::Call, Error = ()> + Sink<SinkItem = T::Response, SinkError = ()> + Send
+{
+    /// Separates the remote shim into a trait object and discrete Sink + Stream object.
+    fn separate(self) -> (Box<T>, Box<dyn RemoteSinkStream<T>>);
+}
+
+/// A generated protocol implementation that allows the construction of shims for RPC forwarding.
+pub trait Protocol: Send {
+    /// The call type sent from the shim to the remote implementation.
+    type Call: Serialize + DeserializeOwned;
+    /// The response type used for communication from the remote implementation to this shim.
+    type Response: Serialize + DeserializeOwned;
+    /// The type of the remote implementation shim.
+    type Remote: Remote<Self>;
+    /// Constructs a new local protocol shim.
+    fn remote() -> Self::Remote;
+}
+
 /// A value that can be constructed/deconstructed into a stream of serializable items for use with protocol traits.
 pub trait Value {
     /// The item type sent over the internal channel by this value.

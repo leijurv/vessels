@@ -543,8 +543,25 @@ fn generate_binds(ident: &Ident, methods: &[Procedure]) -> TokenStream {
                 deserializer.deserialize_seq(CallVisitor)
             }
         }
-        trait #remote: futures::Stream<Item = #call, Error = ()> + futures::Sink<SinkItem = #response, SinkError = ()> + Clone {}
-        impl #remote for #c_remote {}
+        #[doc(hidden)]
+        pub trait #remote: futures::Stream<Item = #call, Error = ()> + futures::Sink<SinkItem = #response, SinkError = ()> + #ident + Send {
+            fn box_clone(&self) -> Box<dyn #remote>;
+            fn proto_clone(&self) -> Box<dyn #ident>;
+        }
+        impl #remote for #c_remote {
+            fn box_clone(&self) -> Box<dyn #remote> {
+                Box::new(self.clone())
+            }
+            fn proto_clone(&self) -> Box<dyn #ident> {
+                Box::new(self.clone())
+            }
+        }
+        impl ::vessels::protocol::Remote<dyn #ident> for Box<dyn #remote> {
+            fn separate(self) -> (Box<dyn #ident>, Box<dyn ::vessels::protocol::RemoteSinkStream<dyn #ident>>) {
+                (self.proto_clone(), Box::new(self))
+            }
+        }
+        impl ::vessels::protocol::RemoteSinkStream<dyn #ident> for Box<dyn #remote> {}
         impl<'de> ::serde::Deserialize<'de> for #response {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: ::serde::Deserializer<'de> {
                 struct ResponseVisitor;
@@ -835,11 +852,16 @@ pub fn protocol(attr: TokenStream, item: TokenStream) -> TokenStream {
         }));
     let c_remote = prefix(ident, "Concrete_Remote");
     let remote = prefix(ident, "Remote");
+    let call = prefix(ident, "Call");
+    let response = prefix(ident, "Response");
     let binds = generate_binds(ident, &procedures);
     let blanket_impl: TokenStream = quote! {
-        impl dyn #ident {
-            fn remote() -> impl #ident + #remote {
-                #c_remote::new()
+        impl ::vessels::protocol::Protocol for dyn #ident {
+            type Call = #call;
+            type Response = #response;
+            type Remote = Box<dyn #remote>;
+            fn remote() -> Self::Remote {
+                Box::new(#c_remote::new())
             }
         }
     }
