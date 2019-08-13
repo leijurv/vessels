@@ -7,9 +7,8 @@ pub trait TestProtocol {
 }
 
 fn main() {
-    let data = vec![];
     executor::run(
-        Module::compile(data)
+        Module::compile(include_bytes!("test.wasm").to_vec())
             .and_then(|module: Box<dyn Module<dyn TestProtocol>>| {
                 module.instantiate().and_then(|instance| {
                     println!("nice: {}", instance.add_one(68));

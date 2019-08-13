@@ -103,6 +103,8 @@ pub trait Protocol: Send {
     type Remote: Remote<Self>;
     /// Constructs a new local protocol shim.
     fn remote() -> Self::Remote;
+    #[doc(hidden)]
+    const DO_NOT_IMPLEMENT_THIS_TRAIT_MANUALLY: u64;
 }
 
 /// A value that can be constructed/deconstructed into a stream of serializable items for use with protocol traits.

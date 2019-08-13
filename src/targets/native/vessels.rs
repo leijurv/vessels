@@ -10,6 +10,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 use wasmer_runtime::{func, imports, Ctx, Instance, Module as WASMModule, Value};
+use wasmer_runtime_core::{module::ExportIndex, types::Initializer};
 
 struct WasmerModuleState<T: Protocol + ?Sized + 'static> {
     module: WASMModule,
@@ -89,9 +90,48 @@ impl<T: Protocol + ?Sized + 'static> WasmerModule<T> {
         data: Vec<u8>,
     ) -> impl Future<Item = Box<dyn Module<T> + 'static>, Error = Error> {
         lazy(move || {
+            let module = wasmer_runtime::compile(data.as_slice())?;
+            let m_info = module.info();
+            let sig_idx = m_info
+                .exports
+                .get("s")
+                .ok_or_else(|| failure::err_msg("temp error lol"))?;
+            if let ExportIndex::Global(s) = sig_idx {
+                if let Initializer::Const(Value::I32(s)) = &m_info
+                    .globals
+                    .get(
+                        s.local_or_import(&m_info)
+                            .local()
+                            .expect("is this actually impossible?"),
+                    )
+                    .unwrap()
+                    .init
+                {
+                    let data = &m_info
+                        .data_initializers
+                        .first()
+                        .ok_or_else(|| failure::err_msg("temp error lol"))?;
+                    if let Initializer::Const(Value::I32(b)) = data.base {
+                        if data.data.len() < (s - b + 8) as usize {
+                            Err(failure::err_msg("temp error lol"))?;
+                        }
+                        let mut bytes: [u8; 8] = Default::default();
+                        bytes.copy_from_slice(&data.data[(s - b) as usize..(s - b + 8) as usize]);
+                        if u64::from_ne_bytes(bytes) != T::DO_NOT_IMPLEMENT_THIS_TRAIT_MANUALLY {
+                            Err(failure::err_msg("invalid wasm lol we really need to make proper errors for this stuff"))?;
+                        }
+                    } else {
+                        Err(failure::err_msg("temp error lol"))?;
+                    }
+                } else {
+                    Err(failure::err_msg("temp error lol"))?;
+                }
+            } else {
+                Err(failure::err_msg("temp error lol"))?;
+            }
             let module: Box<dyn Module<T>> = Box::new(WasmerModule {
                 state: Arc::new(Mutex::new(WasmerModuleState {
-                    module: wasmer_runtime::compile(data.as_slice())?,
+                    module,
                     protocol_type: PhantomData,
                 })),
             });
