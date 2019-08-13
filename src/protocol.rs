@@ -125,11 +125,12 @@ impl<T: Value, E: Value> Future<T, E> {
     }
 }
 
-struct SinkStream<T, U>(T, U);
+struct SinkStream<T: Sink, U: Stream>(T, U);
 
 impl<T, E, S, U> Sink for SinkStream<S, U>
 where
     S: Sink<SinkItem = T, SinkError = E>,
+    U: Stream,
 {
     type SinkItem = T;
     type SinkError = E;
@@ -145,6 +146,7 @@ where
 impl<T, E, S, U> Stream for SinkStream<S, U>
 where
     U: Stream<Item = T, Error = E>,
+    S: Sink,
 {
     type Item = T;
     type Error = E;
