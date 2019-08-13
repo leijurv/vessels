@@ -9,6 +9,10 @@ use crate::proc_macro::TokenStream;
 use quote::{quote, quote_spanned, ToTokens};
 
 use proc_macro2::Span;
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
 use syn::spanned::Spanned;
 use syn::{
     parse_macro_input, punctuated::Punctuated, token::Paren, Field, Fields, FieldsUnnamed, FnArg,
@@ -16,7 +20,7 @@ use syn::{
     TraitItem, TraitItemMethod, Type, TypeParamBound, TypeVerbatim, Variant, Visibility,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 struct Procedure {
     arg_types: Vec<Type>,
     mut_receiver: bool,
@@ -774,7 +778,10 @@ pub fn protocol(attr: TokenStream, item: TokenStream) -> TokenStream {
                     FnArg::Captured(argument) => {
                         let ty = &argument.ty;
                         let ident = Ident::new(
-                            &format!("_{}_{}_arg_{}_AssertSerializeDeserialize", &input.ident, index, arg_index),
+                            &format!(
+                                "_{}_{}_arg_{}_AssertSerializeDeserialize",
+                                &input.ident, index, arg_index
+                            ),
                             Span::call_site(),
                         );
                         assert_stream.extend(TokenStream::from(quote_spanned! {
@@ -855,6 +862,9 @@ pub fn protocol(attr: TokenStream, item: TokenStream) -> TokenStream {
     let call = prefix(ident, "Call");
     let response = prefix(ident, "Response");
     let binds = generate_binds(ident, &procedures);
+    let mut hasher = DefaultHasher::new();
+    (ident, procedures).hash(&mut hasher);
+    let hash = hasher.finish();
     let blanket_impl: TokenStream = quote! {
         impl ::vessels::protocol::Protocol for dyn #ident {
             type Call = #call;
@@ -863,6 +873,7 @@ pub fn protocol(attr: TokenStream, item: TokenStream) -> TokenStream {
             fn remote() -> Self::Remote {
                 Box::new(#c_remote::new())
             }
+            const DO_NOT_IMPLEMENT_THIS_TRAIT_MANUALLY: u64 = #hash;
         }
     }
     .into();

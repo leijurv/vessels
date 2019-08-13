@@ -1,15 +1,16 @@
 use crate::{
     executor,
-    protocol::{Protocol, Remote},
+    protocol::{Protocol, Remote, RemoteSinkStream},
     Module,
 };
 use failure::Error;
-use futures::{lazy, Future, Sink, Stream};
+use futures::{lazy, stream::SplitSink, Future, Sink, Stream};
 use std::{
+    ffi::c_void,
     marker::PhantomData,
     sync::{Arc, Mutex},
 };
-use wasmer_runtime::{func, imports, Ctx, Instance, Module as WASMModule, Value};
+use wasmer_runtime::{func, imports, Ctx, Func, Instance, Module as WASMModule, Value};
 use wasmer_runtime_core::{module::ExportIndex, types::Initializer};
 
 struct WasmerModuleState<T: Protocol + ?Sized + 'static> {
@@ -27,29 +28,34 @@ struct InstanceHandler {
     instance: Mutex<Instance>,
 }
 
+struct SinkContainer(Box<dyn Sink<SinkItem = Vec<u8>, SinkError = ()>>);
+
+fn o(ctx: &mut Ctx, ptr: u32, len: u32) {
+    let memory = ctx.memory(0);
+    let data: Vec<u8> = memory.view()[ptr as usize..(len + ptr) as usize]
+        .iter()
+        .map(|cell| cell.get())
+        .collect();
+    let ptr = ctx.data as *mut SinkContainer;
+    unsafe { Box::from_raw(ptr) }.0.start_send(data).unwrap();
+}
+
 impl InstanceHandler {
     fn new<T: Protocol + ?Sized + 'static>(module: &WASMModule) -> Box<T> {
         let (rem, rss) = T::remote().separate();
         let (rsink, rstream) = rss.split();
-        let rsink = Mutex::new(rsink);
-        let handler = |ctx: &mut Ctx, ptr: u32, len: u32| {
-            let memory = ctx.memory(0);
-            let data: Vec<_> = memory.view()[ptr as usize..(len + ptr) as usize]
-                .iter()
-                .map(|cell| cell.get())
-                .collect();
-            rsink
-                .lock()
-                .unwrap()
-                .start_send(serde_cbor::from_slice(&data).unwrap())
-                .unwrap();
-        };
-        let import_object = imports! {
-            "env" => {
-                "o" => func!(handler),
-            },
-        };
-        let instance = module.instantiate(&import_object).unwrap();
+        let mut instance = module
+            .instantiate(
+                &(imports! {
+                    "env" => {
+                        "o" => func!(o),
+                    },
+                }),
+            )
+            .unwrap();
+        instance.context_mut().data = Box::into_raw(Box::new(SinkContainer(Box::new(
+            rsink.with(|data: Vec<u8>| serde_cbor::from_slice(&data).map_err(|_| ())),
+        )))) as *mut c_void;
         let instance = InstanceHandler {
             instance: Mutex::new(instance),
         };
