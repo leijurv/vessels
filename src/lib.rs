@@ -16,7 +16,7 @@
     unused_import_braces,
     unused_qualifications
 )]
-#![recursion_limit = "128"]
+#![recursion_limit = "256"]
 #[cfg(any(target_arch = "wasm32", target_arch = "asmjs"))]
 #[macro_use]
 extern crate stdweb;

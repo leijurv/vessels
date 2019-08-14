@@ -13,6 +13,9 @@ impl<T: Protocol + ?Sized + 'static> dyn Module<T> {
     pub fn compile(
         data: Vec<u8>,
     ) -> impl Future<Item = Box<dyn Module<T> + 'static>, Error = Error> {
-        targets::native::vessels::WasmerModule::compile(data)
+        #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+        return targets::native::vessels::WasmerModule::compile(data);
+        #[cfg(any(target_arch = "wasm32", target_arch = "asmjs"))]
+        return targets::web::vessels::WASMModule::compile(data);
     }
 }
