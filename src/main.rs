@@ -10,6 +10,13 @@ pub trait TestProtocol {
 }
 
 fn main() {
+    std::panic::set_hook(Box::new(|info: &std::panic::PanicInfo| {
+        let mut msg = info.to_string();
+        js! {
+            console.error((new Error()).stack);
+        };
+        console!(error, msg);
+    }));
     executor::run(
         Module::compile(include_bytes!("test.wasm").to_vec())
             .and_then(|module: Box<dyn Module<dyn TestProtocol>>| {

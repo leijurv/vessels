@@ -78,10 +78,6 @@ impl<T: Protocol + ?Sized + 'static> WASMModule<T> {
     pub(crate) fn compile(
         data: Vec<u8>,
     ) -> impl Future<Item = Box<dyn Module<T> + 'static>, Error = Error> {
-        std::panic::set_hook(Box::new(|data| {
-            console!(log, format!("{:?}", backtrace::Backtrace::new()));
-            console!(log, format!("{:?}", data));
-        }));
         lazy(move || {
             let (mut sender, receiver) = channel(0);
             let mut e_sender = sender.clone();
