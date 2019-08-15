@@ -101,7 +101,7 @@ impl<T: Protocol + ?Sized + 'static> WasmerModule<T> {
             let sig_idx = m_info
                 .exports
                 .get("s")
-                .ok_or_else(|| failure::err_msg("temp error lol"))?;
+                .ok_or_else(|| failure::err_msg("no name s in wasm"))?;
             if let ExportIndex::Global(s) = sig_idx {
                 if let Initializer::Const(Value::I32(s)) = &m_info
                     .globals
@@ -116,10 +116,10 @@ impl<T: Protocol + ?Sized + 'static> WasmerModule<T> {
                     let data = &m_info
                         .data_initializers
                         .first()
-                        .ok_or_else(|| failure::err_msg("temp error lol"))?;
+                        .ok_or_else(|| failure::err_msg("no valid data initializer"))?;
                     if let Initializer::Const(Value::I32(b)) = data.base {
                         if data.data.len() < (s - b + 8) as usize {
-                            Err(failure::err_msg("temp error lol"))?;
+                            Err(failure::err_msg("data segment too short"))?;
                         }
                         let mut bytes: [u8; 8] = Default::default();
                         bytes.copy_from_slice(&data.data[(s - b) as usize..(s - b + 8) as usize]);
@@ -127,13 +127,13 @@ impl<T: Protocol + ?Sized + 'static> WasmerModule<T> {
                             Err(failure::err_msg("invalid wasm lol we really need to make proper errors for this stuff"))?;
                         }
                     } else {
-                        Err(failure::err_msg("temp error lol"))?;
+                        Err(failure::err_msg("no base pointer"))?;
                     }
                 } else {
-                    Err(failure::err_msg("temp error lol"))?;
+                    Err(failure::err_msg("global s not valid pointer"))?;
                 }
             } else {
-                Err(failure::err_msg("temp error lol"))?;
+                Err(failure::err_msg("s not exported global"))?;
             }
             let module: Box<dyn Module<T>> = Box::new(WasmerModule {
                 state: Arc::new(Mutex::new(WasmerModuleState {

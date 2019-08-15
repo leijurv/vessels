@@ -25,6 +25,8 @@ extern crate stdweb;
 #[macro_use]
 extern crate vessels_derive;
 
+pub use vessels_derive::export;
+
 pub use vessels::*;
 mod vessels;
 
@@ -35,6 +37,8 @@ pub mod executor;
 pub mod graphics_2d;
 /// Provides interfaces to user interaction/HID APIs.
 pub mod interaction;
+#[doc(hidden)]
+pub mod macro_deps;
 /// Provides interfaces to abstracted networking APIs.
 pub mod network;
 /// Provides helper types that allow ergonomic construction and styling of 2D vector graphics.

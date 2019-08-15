@@ -235,7 +235,7 @@ pub(crate) fn generate_deserialize_impl(
         let mut args = proc_macro2::TokenStream::new();
         for index in (0..=method.arg_types.len()).map(|i| i + 1) {
             args.extend(quote! {
-                seq.next_element()?.ok_or_else(|| ::serde::de::Error::invalid_length(#index, &self))?,
+                seq.next_element()?.ok_or_else(|| ::vessels::macro_deps::serde::de::Error::invalid_length(#index, &self))?,
             });
         }
         sig.extend(quote! {
@@ -252,7 +252,7 @@ pub(crate) fn generate_deserialize_impl(
             call: match index {
                 #arms,
                 _ => {
-                    let d: #response = seq.next_element()?.ok_or_else(|| ::serde::de::Error::invalid_length(1, &self))?;
+                    let d: #response = seq.next_element()?.ok_or_else(|| ::vessels::macro_deps::serde::de::Error::invalid_length(1, &self))?;
                     #call_inner::#response_variant(d)
                 }
             }
@@ -271,14 +271,14 @@ pub(crate) fn generate_deserialize_return_impl(
         let index = index as u64;
         arms.extend(quote! {
             #index => {
-                Ok(#response::#ident(seq.next_element()?.ok_or_else(|| ::serde::de::Error::invalid_length(0, &self))?, seq.next_element()?.ok_or_else(|| ::serde::de::Error::invalid_length(0, &self))?, index))
+                Ok(#response::#ident(seq.next_element()?.ok_or_else(|| ::vessels::macro_deps::serde::de::Error::invalid_length(0, &self))?, seq.next_element()?.ok_or_else(|| ::vessels::macro_deps::serde::de::Error::invalid_length(0, &self))?, index))
             }
         });
     }
     quote! {
         match index {
             #arms
-            _ => Err(::serde::de::Error::invalid_length(0, &self))?
+            _ => Err(::vessels::macro_deps::serde::de::Error::invalid_length(0, &self))?
         }
     }
 }
@@ -331,8 +331,8 @@ pub(crate) fn generate_st_traits(ident: &Ident, methods: &[Procedure]) -> proc_m
         items.extend(quote! {
             #[allow(non_camel_case_types)]
             #[doc(hidden)]
-            pub trait #ident: ::futures::Stream<Item = <#r_type as ::vessels::protocol::Value>::Item, Error = ()> + ::futures::Sink<SinkItem = <#r_type as ::vessels::protocol::Value>::Item, SinkError = ()> + Send + Sync {}
-            impl<T> #ident for T where T: ::futures::Stream<Item = <#r_type as ::vessels::protocol::Value>::Item, Error = ()> + ::futures::Sink<SinkItem = <#r_type as ::vessels::protocol::Value>::Item, SinkError = ()> + Send + Sync {}
+            pub trait #ident: ::vessels::macro_deps::futures::Stream<Item = <#r_type as ::vessels::protocol::Value>::Item, Error = ()> + ::vessels::macro_deps::futures::Sink<SinkItem = <#r_type as ::vessels::protocol::Value>::Item, SinkError = ()> + Send + Sync {}
+            impl<T> #ident for T where T: ::vessels::macro_deps::futures::Stream<Item = <#r_type as ::vessels::protocol::Value>::Item, Error = ()> + ::vessels::macro_deps::futures::Sink<SinkItem = <#r_type as ::vessels::protocol::Value>::Item, SinkError = ()> + Send + Sync {}
         });
         let o_ident = m.ident.as_ref().unwrap();
         variants.extend(quote! {
@@ -412,7 +412,7 @@ pub(crate) fn generate_binds(ident: &Ident, methods: &[Procedure]) -> TokenStrea
         #[derive(Clone)]
         #[allow(non_camel_case_types)]
         struct #c_remote {
-            task: ::std::sync::Arc<::futures::task::AtomicTask>,
+            task: ::std::sync::Arc<::vessels::macro_deps::futures::task::AtomicTask>,
             queue: ::std::sync::Arc<::std::sync::RwLock<::std::collections::VecDeque<#call>>>,
             ids: ::std::sync::Arc<::std::sync::RwLock<Vec<u64>>>,
             last_id: ::std::sync::Arc<::std::sync::atomic::AtomicU64>,
@@ -421,7 +421,7 @@ pub(crate) fn generate_binds(ident: &Ident, methods: &[Procedure]) -> TokenStrea
         impl #c_remote {
             pub fn new() -> #c_remote {
                 #c_remote {
-                    task: ::std::sync::Arc::new(::futures::task::AtomicTask::new()),
+                    task: ::std::sync::Arc::new(::vessels::macro_deps::futures::task::AtomicTask::new()),
                     queue: ::std::sync::Arc::new(::std::sync::RwLock::new(::std::collections::VecDeque::new())),
                     ids: ::std::sync::Arc::new(::std::sync::RwLock::new(vec![])),
                     last_id: ::std::sync::Arc::new(::std::sync::atomic::AtomicU64::new(0)),
@@ -440,32 +440,32 @@ pub(crate) fn generate_binds(ident: &Ident, methods: &[Procedure]) -> TokenStrea
         impl #ident for #c_remote {
             #remote_impl
         }
-        impl ::futures::Stream for #c_remote {
+        impl ::vessels::macro_deps::futures::Stream for #c_remote {
             type Item = #call;
             type Error = ();
 
-            fn poll(&mut self) -> ::futures::Poll<::std::option::Option<Self::Item>, Self::Error> {
+            fn poll(&mut self) -> ::vessels::macro_deps::futures::Poll<::std::option::Option<Self::Item>, Self::Error> {
                 match self.queue.write().unwrap().pop_front() {
                     Some(item) => {
-                        Ok(::futures::Async::Ready(Some(item)))
+                        Ok(::vessels::macro_deps::futures::Async::Ready(Some(item)))
                     },
                     None => {
                         self.task.register();
-                        Ok(::futures::Async::NotReady)
+                        Ok(::vessels::macro_deps::futures::Async::NotReady)
                     }
                 }
             }
         }
-        impl ::futures::Sink for #c_remote {
+        impl ::vessels::macro_deps::futures::Sink for #c_remote {
             type SinkItem = #response;
             type SinkError = ();
 
-            fn start_send(&mut self, item: Self::SinkItem) -> ::futures::StartSend<Self::SinkItem, Self::SinkError> {
+            fn start_send(&mut self, item: Self::SinkItem) -> ::vessels::macro_deps::futures::StartSend<Self::SinkItem, Self::SinkError> {
                 #handle_response
-                Ok(::futures::AsyncSink::Ready)
+                Ok(::vessels::macro_deps::futures::AsyncSink::Ready)
             }
-            fn poll_complete(&mut self) -> ::futures::Poll<(), Self::SinkError> {
-                Ok(::futures::Async::Ready(()))
+            fn poll_complete(&mut self) -> ::vessels::macro_deps::futures::Poll<(), Self::SinkError> {
+                Ok(::vessels::macro_deps::futures::Async::Ready(()))
             }
         }
         struct #never_ready<T, E> {
@@ -480,12 +480,12 @@ pub(crate) fn generate_binds(ident: &Ident, methods: &[Procedure]) -> TokenStrea
                 }
             }
         }
-        impl<T, E> ::futures::Stream for #never_ready<T, E> {
+        impl<T, E> ::vessels::macro_deps::futures::Stream for #never_ready<T, E> {
             type Item = T;
             type Error = E;
 
-            fn poll(&mut self) -> ::futures::Poll<Option<Self::Item>, Self::Error> {
-                Ok(::futures::Async::NotReady)
+            fn poll(&mut self) -> ::vessels::macro_deps::futures::Poll<Option<Self::Item>, Self::Error> {
+                Ok(::vessels::macro_deps::futures::Async::NotReady)
             }
         }
         #[doc(hidden)]
@@ -505,9 +505,9 @@ pub(crate) fn generate_binds(ident: &Ident, methods: &[Procedure]) -> TokenStrea
         pub enum #response {
             #(#return_variants),*
         }
-        impl ::serde::Serialize for #call {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::Serializer {
-                use ::serde::ser::SerializeSeq;
+        impl ::vessels::macro_deps::serde::Serialize for #call {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::vessels::macro_deps::serde::Serializer {
+                use ::vessels::macro_deps::serde::ser::SerializeSeq;
                 match &self.call {
                     #serialize_impl
                     #call_inner::#response_variant(response) => {
@@ -519,25 +519,25 @@ pub(crate) fn generate_binds(ident: &Ident, methods: &[Procedure]) -> TokenStrea
                 }
             }
         }
-        impl ::serde::Serialize for #response {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::Serializer {
-                use ::serde::ser::SerializeSeq;
+        impl ::vessels::macro_deps::serde::Serialize for #response {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::vessels::macro_deps::serde::Serializer {
+                use ::vessels::macro_deps::serde::ser::SerializeSeq;
                 match self {
                     #serialize_return_impl
                 }
             }
         }
-        impl<'de> ::serde::Deserialize<'de> for #call {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: ::serde::Deserializer<'de> {
+        impl<'de> ::vessels::macro_deps::serde::Deserialize<'de> for #call {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: ::vessels::macro_deps::serde::Deserializer<'de> {
                 struct CallVisitor;
-                impl<'de> ::serde::de::Visitor<'de> for CallVisitor {
+                impl<'de> ::vessels::macro_deps::serde::de::Visitor<'de> for CallVisitor {
                     type Value = #call;
 
                     fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                         formatter.write_str("a serialized protocol #call")
                     }
-                    fn visit_seq<V>(self, mut seq: V) -> Result<#call, V::Error> where V: ::serde::de::SeqAccess<'de>, {
-                        let index: usize = seq.next_element()?.ok_or_else(|| ::serde::de::Error::invalid_length(0, &self))?;
+                    fn visit_seq<V>(self, mut seq: V) -> Result<#call, V::Error> where V: ::vessels::macro_deps::serde::de::SeqAccess<'de>, {
+                        let index: usize = seq.next_element()?.ok_or_else(|| ::vessels::macro_deps::serde::de::Error::invalid_length(0, &self))?;
                         #deserialize_impl
                     }
                 }
@@ -545,7 +545,7 @@ pub(crate) fn generate_binds(ident: &Ident, methods: &[Procedure]) -> TokenStrea
             }
         }
         #[doc(hidden)]
-        pub trait #remote: futures::Stream<Item = #call, Error = ()> + futures::Sink<SinkItem = #response, SinkError = ()> + #ident + Send {
+        pub trait #remote: ::vessels::macro_deps::futures::Stream<Item = #call, Error = ()> + ::vessels::macro_deps::futures::Sink<SinkItem = #response, SinkError = ()> + #ident + Send {
             fn box_clone(&self) -> Box<dyn #remote>;
             fn proto_clone(&self) -> Box<dyn #ident>;
         }
@@ -563,17 +563,17 @@ pub(crate) fn generate_binds(ident: &Ident, methods: &[Procedure]) -> TokenStrea
             }
         }
         impl ::vessels::protocol::RemoteSinkStream<dyn #ident> for Box<dyn #remote> {}
-        impl<'de> ::serde::Deserialize<'de> for #response {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: ::serde::Deserializer<'de> {
+        impl<'de> ::vessels::macro_deps::serde::Deserialize<'de> for #response {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: ::vessels::macro_deps::serde::Deserializer<'de> {
                 struct ResponseVisitor;
-                impl<'de> ::serde::de::Visitor<'de> for ResponseVisitor {
+                impl<'de> ::vessels::macro_deps::serde::de::Visitor<'de> for ResponseVisitor {
                     type Value = #response;
 
                     fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                         formatter.write_str("a serialized protocol #response")
                     }
-                    fn visit_seq<V>(self, mut seq: V) -> Result<#response, V::Error> where V: ::serde::de::SeqAccess<'de>, {
-                        let index: u64 = seq.next_element()?.ok_or_else(|| ::serde::de::Error::invalid_length(0, &self))?;
+                    fn visit_seq<V>(self, mut seq: V) -> Result<#response, V::Error> where V: ::vessels::macro_deps::serde::de::SeqAccess<'de>, {
+                        let index: u64 = seq.next_element()?.ok_or_else(|| ::vessels::macro_deps::serde::de::Error::invalid_length(0, &self))?;
                         #deserialize_return_impl
                     }
                 }
@@ -584,8 +584,8 @@ pub(crate) fn generate_binds(ident: &Ident, methods: &[Procedure]) -> TokenStrea
         struct #protocol_shim<T: #ident> {
             inner: T,
             channels: ::std::collections::HashMap<u64, #channel>,
-            inner_stream: Box<dyn ::futures::Stream<Item = #response, Error = ()> + Send>,
-            task: ::std::sync::Arc<::futures::task::AtomicTask>
+            inner_stream: Box<dyn ::vessels::macro_deps::futures::Stream<Item = #response, Error = ()> + Send>,
+            task: ::std::sync::Arc<::vessels::macro_deps::futures::task::AtomicTask>
         }
         impl<T: #ident> #protocol_shim<T> {
             pub fn new(inner: T) -> Self {
@@ -593,41 +593,41 @@ pub(crate) fn generate_binds(ident: &Ident, methods: &[Procedure]) -> TokenStrea
                     inner,
                     channels: ::std::collections::HashMap::new(),
                     inner_stream: Box::new(#never_ready::new()),
-                    task: ::std::sync::Arc::new(::futures::task::AtomicTask::new())
+                    task: ::std::sync::Arc::new(::vessels::macro_deps::futures::task::AtomicTask::new())
                 }
             }
         }
-        impl<T> ::futures::Sink for #protocol_shim<T> where T: #ident {
+        impl<T> ::vessels::macro_deps::futures::Sink for #protocol_shim<T> where T: #ident {
             type SinkItem = #call;
             type SinkError = ();
-            fn start_send(&mut self, item: Self::SinkItem) -> ::futures::StartSend<Self::SinkItem, Self::SinkError> {
+            fn start_send(&mut self, item: Self::SinkItem) -> ::vessels::macro_deps::futures::StartSend<Self::SinkItem, Self::SinkError> {
                 use ::vessels::protocol::Value;
-                use ::futures::{Stream, Sink, Future};
+                use ::vessels::macro_deps::futures::{Stream, Sink, Future};
                 match item.call {
                     #blanket
                     #call_inner::#response_variant(resp) => {
                         // TODO
                     }
                 }
-                Ok(::futures::AsyncSink::Ready)
+                Ok(::vessels::macro_deps::futures::AsyncSink::Ready)
             }
-            fn poll_complete(&mut self) -> ::futures::Poll<(), Self::SinkError> {
-                Ok(::futures::Async::Ready(()))
+            fn poll_complete(&mut self) -> ::vessels::macro_deps::futures::Poll<(), Self::SinkError> {
+                Ok(::vessels::macro_deps::futures::Async::Ready(()))
             }
         }
-        impl<T> ::futures::Stream for #protocol_shim<T> where T: #ident {
+        impl<T> ::vessels::macro_deps::futures::Stream for #protocol_shim<T> where T: #ident {
             type Item = #response;
             type Error = ();
 
-            fn poll(&mut self) -> ::futures::Poll<Option<Self::Item>, Self::Error> {
+            fn poll(&mut self) -> ::vessels::macro_deps::futures::Poll<Option<Self::Item>, Self::Error> {
                 let poll = self.inner_stream.poll();
-                if let Ok(::futures::Async::NotReady) = poll {
+                if let Ok(::vessels::macro_deps::futures::Async::NotReady) = poll {
                     self.task.register();
                 }
                 poll
             }
         }
-        pub trait #protocol_trait: ::futures::Sink<SinkItem = #call, SinkError = ()> + ::futures::Stream<Item = #response, Error = ()> + #ident + Send {}
+        pub trait #protocol_trait: ::vessels::macro_deps::futures::Sink<SinkItem = #call, SinkError = ()> + ::vessels::macro_deps::futures::Stream<Item = #response, Error = ()> + #ident + Send {}
         #[allow(non_camel_case_types)]
         impl<T> #protocol_trait for #protocol_shim<T> where T: #ident + Send {}
         impl<T: #ident> #ident for #protocol_shim<T> {
@@ -665,7 +665,7 @@ pub(crate) fn generate_blanket(ident: &Ident, methods: &[Procedure]) -> proc_mac
                 let (context, loc_context) = ::vessels::protocol::Context::new();
                 self.#ident(#args).deconstruct(context);
                 let (sink, stream) = loc_context.split();
-                let mut i_stream: Box<dyn ::futures::Stream<Error = (), Item = #response> + Send + 'static> = Box::new(futures::stream::empty());
+                let mut i_stream: Box<dyn ::vessels::macro_deps::futures::Stream<Error = (), Item = #response> + Send + 'static> = Box::new(::vessels::macro_deps::futures::stream::empty());
                 std::mem::swap(&mut self.inner_stream, &mut i_stream);
                 self.inner_stream = Box::new(stream.map(move |i| #response::#ident(i, #index, #id)).select(i_stream));
                 self.task.notify();
@@ -783,7 +783,7 @@ pub fn protocol(attr: TokenStream, item: TokenStream) -> TokenStream {
                         assert_stream.extend(TokenStream::from(quote_spanned! {
                             ty.span() =>
                             #[allow(non_camel_case_types)]
-                            struct #ident where #ty: ::serde::Serialize + ::serde::de::DeserializeOwned;
+                            struct #ident where #ty: ::vessels::macro_deps::serde::Serialize + ::vessels::macro_deps::serde::de::DeserializeOwned;
                         }));
                         procedure.arg_types.push(argument.ty.clone());
                     }

@@ -1,0 +1,17 @@
+[package]
+name = "test_vessel"
+version = "0.1.0"
+authors = ["Izzy Swart <zenerboson@gmail.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies.vessels]
+version = "0.1.0"
+default-features = false
+path = "../"
+
+[dependencies.test_protocol]
+version = "0.1.0"
+path = "../test_protocol"

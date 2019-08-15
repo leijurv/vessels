@@ -1,0 +1,9 @@
+[package]
+name = "test_protocol"
+version = "0.1.0"
+authors = ["Izzy Swart <zenerboson@gmail.com>"]
+edition = "2018"
+
+[dependencies.vessels]
+version = "0.1.0"
+path = "../"

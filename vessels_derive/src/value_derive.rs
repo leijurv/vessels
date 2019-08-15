@@ -41,7 +41,7 @@ pub(crate) fn value_derive(mut s: synstructure::Structure) -> proc_macro2::Token
             });
             deserialize_impl.extend(quote! {
                 #id => {
-                    #en::#ident(seq.next_element()?.ok_or_else(|| ::serde::de::Error::invalid_length(1, &self))?)
+                    #en::#ident(seq.next_element()?.ok_or_else(|| ::vessels::macro_deps::serde::de::Error::invalid_length(1, &self))?)
                 }
             });
             id += 1;
@@ -70,28 +70,28 @@ pub(crate) fn value_derive(mut s: synstructure::Structure) -> proc_macro2::Token
         pub enum #en {
             #variants
         }
-        impl ::serde::Serialize for #en {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::Serializer {
-                use ::serde::ser::SerializeSeq;
+        impl ::vessels::macro_deps::serde::Serialize for #en {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::vessels::macro_deps::serde::Serializer {
+                use ::vessels::macro_deps::serde::ser::SerializeSeq;
                 match self {
                     #serialize_impl
                 }
             }
         }
-        impl<'de> ::serde::Deserialize<'de> for #en {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: ::serde::Deserializer<'de> {
+        impl<'de> ::vessels::macro_deps::serde::Deserialize<'de> for #en {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: ::vessels::macro_deps::serde::Deserializer<'de> {
                 struct CallVisitor;
-                impl<'de> ::serde::de::Visitor<'de> for CallVisitor {
+                impl<'de> ::vessels::macro_deps::serde::de::Visitor<'de> for CallVisitor {
                     type Value = #en;
 
                     fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                         formatter.write_str(#expectation)
                     }
-                    fn visit_seq<V>(self, mut seq: V) -> Result<#en, V::Error> where V: ::serde::de::SeqAccess<'de>, {
-                        let index: usize = seq.next_element()?.ok_or_else(|| ::serde::de::Error::invalid_length(0, &self))?;
+                    fn visit_seq<V>(self, mut seq: V) -> Result<#en, V::Error> where V: ::vessels::macro_deps::serde::de::SeqAccess<'de>, {
+                        let index: usize = seq.next_element()?.ok_or_else(|| ::vessels::macro_deps::serde::de::Error::invalid_length(0, &self))?;
                         Ok(match index {
                             #deserialize_impl
-                            _ => { Err(::serde::de::Error::invalid_length(0, &self))? }
+                            _ => { Err(::vessels::macro_deps::serde::de::Error::invalid_length(0, &self))? }
                         })
                     }
                 }
@@ -130,7 +130,7 @@ pub(crate) fn value_derive(mut s: synstructure::Structure) -> proc_macro2::Token
                 #en::#r_ident(data) => {
                     let mut s = None;
                     ::std::mem::swap(&mut s, &mut #ident_ctx);
-                    ::vessels::executor::spawn(s.expect("No split sink").send_all(::futures::stream::once(Ok(data)).chain(item.1.filter_map(|item| {
+                    ::vessels::executor::spawn(s.expect("No split sink").send_all(::vessels::macro_deps::futures::stream::once(Ok(data)).chain(item.1.filter_map(|item| {
                         if let #en::#r_ident(item) = item {
                             Some(item)
                         } else {
@@ -146,7 +146,7 @@ pub(crate) fn value_derive(mut s: synstructure::Structure) -> proc_macro2::Token
                 let sel_stream = (if let Some(stream) = #ident { Box::new(stream.map(|item| #en::#r_ident(item)).select(sel_stream)) } else { sel_stream });
             });
             decl_stream.extend(quote! {
-                let (mut #ident, mut #ident_ctx): (Option<::futures::stream::SplitStream<::vessels::protocol::Context::<<#ty as ::vessels::protocol::Value>::Item>>>, Option<::futures::stream::SplitSink<::vessels::protocol::Context::<<#ty as ::vessels::protocol::Value>::Item>>>) = (None, None);
+                let (mut #ident, mut #ident_ctx): (Option<::vessels::macro_deps::futures::stream::SplitStream<::vessels::protocol::Context::<<#ty as ::vessels::protocol::Value>::Item>>>, Option<::vessels::macro_deps::futures::stream::SplitSink<::vessels::protocol::Context::<<#ty as ::vessels::protocol::Value>::Item>>>) = (None, None);
             });
             idx += 1;
         });
@@ -175,7 +175,7 @@ pub(crate) fn value_derive(mut s: synstructure::Structure) -> proc_macro2::Token
                 let ident_ctxs = Ident::new(&format!("{}_{}_ctxs", ident_ct, idx), Span::call_site());
                 let ty = &field.ty;
                 decl_stream.extend(quote! {
-                    let (mut #ident_ct, mut #ident_ctx): (::futures::stream::SplitStream<::vessels::protocol::Context::<<#ty as ::vessels::protocol::Value>::Item>>, ::futures::stream::SplitSink<::vessels::protocol::Context::<<#ty as ::vessels::protocol::Value>::Item>>);
+                    let (mut #ident_ct, mut #ident_ctx): (::vessels::macro_deps::futures::stream::SplitStream<::vessels::protocol::Context::<<#ty as ::vessels::protocol::Value>::Item>>, ::vessels::macro_deps::futures::stream::SplitSink<::vessels::protocol::Context::<<#ty as ::vessels::protocol::Value>::Item>>);
                 });
                 select_stream.extend(quote! {
                     let sel_stream = #ident_ct.map(|item| #en::#b_i_ident(item)).select(sel_stream);
@@ -213,10 +213,10 @@ pub(crate) fn value_derive(mut s: synstructure::Structure) -> proc_macro2::Token
             });
             construct.extend(quote! {
                 #en::#b_ident(data) => {
-                    let sel_stream = ::futures::stream::empty();
+                    let sel_stream = ::vessels::macro_deps::futures::stream::empty();
                     #decl_stream
                     #mcst;
-                    ::vessels::executor::spawn(::futures::stream::once(Ok(#en::#b_ident(data))).chain(v.1).for_each(move |item| {
+                    ::vessels::executor::spawn(::vessels::macro_deps::futures::stream::once(Ok(#en::#b_ident(data))).chain(v.1).for_each(move |item| {
                         match item {
                             #item_stream
                             _ => {}
@@ -240,8 +240,8 @@ pub(crate) fn value_derive(mut s: synstructure::Structure) -> proc_macro2::Token
             type Item = #en;
 
             fn deconstruct<
-                C: ::futures::Sink<SinkItem = Self::Item, SinkError = ()>
-                    + ::futures::Stream<Item = Self::Item, Error = ()>
+                C: ::vessels::macro_deps::futures::Sink<SinkItem = Self::Item, SinkError = ()>
+                    + ::vessels::macro_deps::futures::Stream<Item = Self::Item, Error = ()>
                     + Send
                     + 'static,
             >(
@@ -250,9 +250,9 @@ pub(crate) fn value_derive(mut s: synstructure::Structure) -> proc_macro2::Token
             ) where
                 Self: Sized,
             {
-                use ::futures::{Sink, Stream};
+                use ::vessels::macro_deps::futures::{Sink, Stream};
                 let (mut sink, mut stream) = context.split();
-                let sel_stream: Box<dyn Stream<Item = Self::Item, Error = ()> + Send> = Box::new(::futures::stream::empty());
+                let sel_stream: Box<dyn Stream<Item = Self::Item, Error = ()> + Send> = Box::new(::vessels::macro_deps::futures::stream::empty());
                 #decl_stream
                 match self {
                     #deconstruct
@@ -276,14 +276,14 @@ pub(crate) fn value_derive(mut s: synstructure::Structure) -> proc_macro2::Token
                     }).then(|_| Ok(())));
             }
             fn construct<
-                C: ::futures::Sink<SinkItem = Self::Item, SinkError = ()>
-                    + ::futures::Stream<Item = Self::Item, Error = ()>
+                C: ::vessels::macro_deps::futures::Sink<SinkItem = Self::Item, SinkError = ()>
+                    + ::vessels::macro_deps::futures::Stream<Item = Self::Item, Error = ()>
                     + Send
                     + 'static,
             >(
                 context: C,
             ) -> Self {
-                use ::futures::{Sink, Stream};
+                use ::vessels::macro_deps::futures::{Sink, Stream};
                 let (sink, stream) = context.split();
                 if let Ok(constructed) = stream.into_future().and_then(|v| {
                     match v.0.unwrap() {

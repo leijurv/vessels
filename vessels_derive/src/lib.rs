@@ -7,6 +7,7 @@ extern crate synstructure;
 
 use crate::proc_macro::TokenStream;
 
+mod export;
 mod protocol;
 mod value_derive;
 
@@ -26,3 +27,8 @@ pub fn protocol(attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 decl_derive!([Value] => value_derive::value_derive);
+
+#[proc_macro_attribute]
+pub fn export(attr: TokenStream, item: TokenStream) -> TokenStream {
+    export::export(attr, item).into()
+}
